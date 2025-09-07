@@ -31,14 +31,37 @@ naturalql/
 
 **Data model (tables):** `cinemas, movies, people, movie_directors, movie_cast, genres, movie_genres, festivals, festival_entries, awards, movie_awards, screenings`.
 
+
+```mermaid
+erDiagram
+CINEMAS ||--o{ SCREENINGS : has
+MOVIES ||--o{ SCREENINGS : is_shown_at
+MOVIES ||--o{ MOVIE_DIRECTORS : has
+PEOPLE ||--o{ MOVIE_DIRECTORS : directs
+MOVIES ||--o{ MOVIE_CAST : has
+PEOPLE ||--o{ MOVIE_CAST : acts_in
+MOVIES ||--o{ MOVIE_GENRES : categorized_as
+GENRES ||--o{ MOVIE_GENRES : includes
+FESTIVALS ||--o{ FESTIVAL_ENTRIES : includes
+MOVIES ||--o{ FESTIVAL_ENTRIES : submits
+AWARDS ||--o{ MOVIE_AWARDS : grants
+MOVIES ||--o{ MOVIE_AWARDS : receives
+```
 ---
 
 ## ⚙️ Setup
 
+### Recommended Stack
+
+* Python 3.11 (DuckDB wheels are most stable on 3.11). 3.12 works, but see troubleshooting.
+* Poetry ≥ 1.6
+* OpenAI API key (sign up at [https://platform.openai.com](https://platform.openai.com))
+* VSCode (optional, but recommended) - with Mermaid extension for architecture diagrams
+
+## 1) Install dependencies
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+poetry install
 ```
 
 ### Create a `.env` file (kept out of git)
@@ -62,40 +85,10 @@ Ensure `.env` is ignored by git (add this to `.gitignore` if not present):
 .env
 ```
 
-### `config.py` (dotenv-aware)
-
-Update `src/naturalql/config.py` to load environment variables from `.env`:
-
-```python
-from dataclasses import dataclass
-import os
-from dotenv import load_dotenv, find_dotenv
-
-# Load env vars from .env if present
-load_dotenv(find_dotenv())
-
-DEFAULT_MODEL = os.getenv("NQL_MODEL", "gpt-4o-mini")
-TODAY = os.getenv("NQL_TODAY", "2025-09-10")  # deterministic demo date
-DB_PATH = os.getenv("NQL_DB_PATH", "naturalql.duckdb")
-RESULT_LIMIT_DEFAULT = int(os.getenv("NQL_RESULT_LIMIT", "50"))
-# OpenAI SDK reads OPENAI_API_KEY from env automatically
-
-@dataclass
-class Settings:
-    model: str = DEFAULT_MODEL
-    today: str = TODAY
-    db_path: str = DB_PATH
-    result_limit: int = RESULT_LIMIT_DEFAULT
-```
-
-> No other code changes are required. The OpenAI SDK picks up `OPENAI_API_KEY` from the environment.
-
----
-
 ## ▶️ Run
 
 ```bash
-streamlit run app.py
+poetry run streamlit run src/naturalql/app.py
 ```
 
 Then open the printed local URL (typically [http://localhost:8501](http://localhost:8501)).
@@ -125,7 +118,7 @@ Tip: tick **Show generated SQL** to display the query.
 
 ## 🧩 Design choices (talking points)
 
-* **DuckDB**: great for demos—file‑based, fast, no server setup
+* **DuckDB**: file‑based, fast, no server setup
 * **Prompt rules**: codified compliance (time windows → date overlaps, GROUP BY requirements)
 * **Determinism**: fixed TODAY date + tiny time normalizer for *“this summer”* etc.
 * **Extensibility**: swap OpenAI model, change DB, or add self‑verification
