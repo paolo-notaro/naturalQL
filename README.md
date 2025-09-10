@@ -139,7 +139,7 @@ Then open the printed local URL (typically [http://localhost:8501](http://localh
 
 ## 🧪 Try these queries
 
-* *“Show all new Sci‑Fi movies screening at Cinema Luna this summer from debut directors who never participated in festivals ranked A or S, and whose cast never acted in an award‑winning movie.”*
+* *“Show all new Sci-Fi movies screened at Cinema Luna between 1 Jun and 31 Aug 2025, directed by debut directors, that never participated in A or S ranked festivals, share no cast member with any award-winning movie, have runtime ≥ 100 minutes, and were shown in 2D (not IMAX).”*
 * *“For each cinema, count how many new releases were screening in August 2025.”*
 * *“List movies released in 2025 with their directors and primary genre.”*
 * *“Find actors who worked with more than one director.”*

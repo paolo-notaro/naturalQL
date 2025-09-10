@@ -102,13 +102,12 @@ def main():
             "Ask a question about movies, screenings, festivals, directors, cast, etc.",
             height=110,
             placeholder=(
-                "e.g., Show all new Sci-Fi movies screening at Cinema Luna this summer from debut directors "
-                "who never participated in festivals ranked A or S, and whose cast never acted in an award-winning movie."
+                "e.g., Show all new Sci-Fi movies screened at Cinema Luna between 1 Jun and 31 Aug 2025, directed by debut directors, that never participated in A or S ranked festivals, share no cast member with any award-winning movie, have runtime ≥ 100 minutes, and were shown in 2D (not IMAX)."
             ),
         )
 
         examples = [
-            "Show all new Sci-Fi movies screening at Cinema Luna this summer from debut directors who never participated in festivals ranked A or S, and whose cast never acted in an award-winning movie.",
+            "Show all new Sci-Fi movies screened at Cinema Luna between 1 Jun and 31 Aug 2025, directed by debut directors, that never participated in A or S ranked festivals, share no cast member with any award-winning movie, have runtime ≥ 100 minutes, and were shown in 2D (not IMAX).",
             "For each cinema, count how many new releases were screening in August 2025.",
             "List movies released in 2025 with their directors and primary genre.",
             "Find actors who worked with more than one director.",
@@ -204,8 +203,10 @@ def main():
 """
         )
 
-    st.markdown("### Table Relations (ERD)")
-    render_mermaid_from_md("docs/tables.md", height=760)
+        st.markdown("### Table Relations (ERD)")
+        erd_box = st.container()
+        with erd_box:
+            render_mermaid_from_md("docs/tables.md", height=760)
 
 
 if __name__ == "__main__":
