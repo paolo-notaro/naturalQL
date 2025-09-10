@@ -1,13 +1,49 @@
 """src/naturalql/app.py: Main application logic for NaturalQL."""
 
+import re
+from pathlib import Path
+
 import duckdb
+
 import streamlit as st
+import streamlit.components.v1 as components
 from naturalql.config import Settings
 from naturalql import db, guards, llm
 from naturalql.nlp import normalize_time_phrases
 
+
 st.set_page_config(page_title="NaturalQL", page_icon="🎬", layout="centered")
 APP_TITLE = "🎬 NaturalQL — Natural Language to Guardrailed SQL"
+
+MERMAID_CDN = "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"
+FENCE_RE = re.compile(r"```mermaid\s*(.*?)\s*```", re.S | re.I)
+
+
+def render_mermaid_from_md(md_path: str | Path, *, height: int = 760):
+    """
+    Read a markdown file, extract the first ```mermaid``` block (or whole file),
+    and render it with Mermaid via a simple startOnLoad init.
+    """
+    p = Path(md_path)
+    if not p.exists():
+        st.warning(f"Diagram file not found: {md_path}")
+        return
+
+    text = p.read_text(encoding="utf-8")
+    m = FENCE_RE.search(text)
+    code = (m.group(1) if m else text).strip()
+
+    html = f"""
+    <div class="mermaid" style="max-width:100%;">{code}</div>
+    <script src="{MERMAID_CDN}"></script>
+    <script>
+      mermaid.initialize({{
+        startOnLoad: true,
+        securityLevel: "loose"
+      }});
+    </script>
+    """
+    components.html(html, height=height, scrolling=True)
 
 
 def hero():
@@ -167,6 +203,9 @@ def main():
 - Swap in company schema / connect to Postgres.  
 """
         )
+
+    st.markdown("### Table Relations (ERD)")
+    render_mermaid_from_md("docs/tables.md", height=760)
 
 
 if __name__ == "__main__":
