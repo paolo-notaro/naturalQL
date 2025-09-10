@@ -204,9 +204,7 @@ def main():
         )
 
         st.markdown("### Table Relations (ERD)")
-        erd_box = st.container()
-        with erd_box:
-            render_mermaid_from_md("docs/tables.md", height=760)
+        render_mermaid_from_md("docs/tables.md", height=760)
 
 
 if __name__ == "__main__":
