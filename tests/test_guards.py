@@ -71,6 +71,15 @@ def test_extracts_one_fence_with_surrounding_text(schema, policy):
     assert "movies.title" in sql
 
 
+def test_sql_length_applies_after_fence_extraction(schema):
+    policy = QueryPolicy(result_limit=10, max_sql_length=40, max_ast_nodes=100)
+    response = f"{'Background. ' * 20}\n```sql\nSELECT title FROM movies\n```"
+
+    sql = prepare(response, schema, policy)
+
+    assert "movies.title" in sql
+
+
 def test_rejects_multiple_fenced_blocks(schema, policy):
     response = (
         "```sql\nSELECT title FROM movies\n```\n```sql\nSELECT name FROM people\n```"

@@ -41,10 +41,23 @@ query execution begins.
 The model prompt is useful for query quality, but it is deliberately not counted
 as a security layer.
 
-The domain gate is deliberately simple and visible. It catches accidental
-off-topic questions and common prompt-hijacking attempts before an API call, but
+## How refusal works
+
+The model does not decide whether to refuse a question. Before making an OpenAI
+request, `scope.py` checks whether the question explicitly mentions the
+available domain: movies, cinemas, screenings, people, genres, festivals, or
+awards. A question such as “What happened in 1492?” has no domain term, so the
+application returns a refusal immediately and makes no API call.
+
+This gate is deliberately simple, deterministic, and visible in the code. It
+catches accidental off-topic questions and basic prompt-hijacking attempts, but
 it is not a semantic classifier. A prompt that includes movie terminology can
-pass this gate; the SQL and database controls still enforce what may execute.
+pass the relevance check.
+
+The SQL policy therefore provides a second check: an accepted query must use at
+least one physical table from the application database. Constant-only output
+such as `SELECT 1492` is rejected even if the relevance gate is bypassed. The
+remaining SQL and database controls still determine what may execute.
 
 ## Reliability choices
 
