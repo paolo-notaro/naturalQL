@@ -117,6 +117,8 @@ def prepare_sql(
         statements = [statement for statement in parse(sql, read="duckdb") if statement]
     except ParseError as exc:
         raise QueryRejected(f"SQL parse error: {exc}") from exc
+    except Exception as exc:
+        raise QueryRejected("SQL parsing failed unexpectedly") from exc
 
     if len(statements) != 1:
         raise QueryRejected("Exactly one SQL statement is required")

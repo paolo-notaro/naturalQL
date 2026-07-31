@@ -61,7 +61,8 @@ def hero() -> None:
 
 def get_conn(path: str):
     """Return a read-only query connection for the configured database."""
-    if st.session_state.get("db_path") != path:
+    existing = st.session_state.get("conn")
+    if st.session_state.get("db_path") != path or existing is None:
         existing = st.session_state.pop("conn", None)
         if existing is not None:
             existing.close()

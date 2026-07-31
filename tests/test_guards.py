@@ -36,6 +36,16 @@ def test_rejects_multiple_statements(schema, policy):
         prepare("SELECT title FROM movies; SELECT name FROM people", schema, policy)
 
 
+def test_unexpected_parser_failure_is_rejected(monkeypatch, schema, policy):
+    def fail_to_parse(*args, **kwargs):
+        raise RuntimeError("unexpected parser failure")
+
+    monkeypatch.setattr("naturalql.guards.parse", fail_to_parse)
+
+    with pytest.raises(QueryRejected, match="parsing failed unexpectedly"):
+        prepare("SELECT title FROM movies", schema, policy)
+
+
 def test_allows_dangerous_words_inside_literals(schema, policy):
     sql = prepare("SELECT 'drop table' AS note FROM movies LIMIT 1", schema, policy)
     assert "drop table" in sql
