@@ -1,42 +1,64 @@
 # Security and reliability
 
-NaturalQL treats language-model output as untrusted input. Prompt instructions
-improve generation quality, but they are not part of the security boundary.
+The central rule in NaturalQL is simple: generated SQL is never trusted because
+it came from the model.
 
-## Trust boundary
+OpenAI can propose a query, but it has no database connection or credentials.
+Application code decides whether the query is structurally acceptable, and
+DuckDB provides a second enforcement layer at execution time.
 
-Only SQL accepted by the deterministic query policy is sent to DuckDB. The
-policy parses one statement, admits query expressions, checks physical sources
-and columns against the live schema, rejects external table functions, bounds
-query size and complexity, and caps returned rows. A repaired query is checked
-from the beginning rather than inheriting trust from the first attempt.
+## What happens to generated SQL
 
-Database creation and reset use a short-lived administrative connection.
-Generated queries run through a separate read-only connection configured with
-external access disabled. This is a second line of defense if validation has an
-unexpected gap.
+Every initial or repaired query goes through the same sequence:
 
-## Reliability controls
+1. Extract SQL from the model response and reject empty or oversized output.
+2. Parse exactly one statement using the DuckDB dialect.
+3. Require a query expression and reject writes or database commands.
+4. Check physical tables against the allowed application tables.
+5. Resolve columns, aliases, and nested scopes against the live database
+   structure.
+6. Reject table-producing functions that could introduce an external source.
+7. Reject an excessively large syntax tree.
+8. Add or cap the result limit.
+9. Execute through the read-only connection with external access disabled.
 
-- A fixed, configurable reference date makes supported relative phrases
-  reproducible.
-- Schema text supplied to the model is derived from the same database used by
-  the validator.
-- Validation failures permit one repair attempt, avoiding unbounded agent loops.
-- SQL explanations use the exact validated query that was executed.
-- Tests use mocked model responses and a malicious-query regression set.
+Working with a parsed syntax tree matters. A keyword search can reject harmless
+text such as a movie title containing “drop,” while still missing a dangerous
+operation expressed in an unexpected form.
 
-## Limitations
+## Defense in depth
 
-The validator establishes a syntactic and access-control boundary; it does not
-establish semantic equivalence between a question and a query. Valid SQL can
-still misunderstand intent, choose an incorrect join, or produce misleading
-aggregates.
+The query policy is the first enforcement layer. It controls which SQL shapes
+and database objects are accepted.
 
-A result limit controls returned rows, not CPU time, memory, or rows scanned.
-DuckDB is embedded in the application and this demo does not provide tenant
-isolation, query timeouts, audit storage, or user authorization. Those controls
-belong in the database and execution environment of a production system.
+The DuckDB connection is the second layer. Generated queries use a connection
+opened in read-only mode with external access disabled. Database initialization
+and reset happen through a separate trusted connection that is closed before
+query execution begins.
 
-Do not expose this demo directly to untrusted multi-tenant traffic or substitute
-its validator for database permissions.
+The model prompt is useful for query quality, but it is deliberately not counted
+as a security layer.
+
+## Reliability choices
+
+- Relative dates use a fixed, configurable reference date.
+- The model and validator use the structure read from the same database.
+- Failed validation allows one repair attempt, not an open-ended loop.
+- A repaired query starts the full validation process again.
+- Explanations use the exact SQL that ran.
+- Tests use mocked model responses and require no API key or network access.
+
+## What remains outside the boundary
+
+Passing validation means a query is allowed to run. It does not mean the query
+correctly understood the question. The model can still choose a wrong join,
+omit an important filter, or produce a misleading aggregate.
+
+A row limit controls the size of the returned result, not CPU time, memory, or
+the amount of data scanned. This demo also has no users, roles, audit trail, or
+tenant isolation.
+
+A production version should add database-native permissions, statement
+timeouts, resource limits, audit logging, monitoring, and authorization rules
+for the real data domain. NaturalQL's validator should complement those controls,
+not replace them.

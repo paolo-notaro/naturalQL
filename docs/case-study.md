@@ -1,48 +1,74 @@
-# NaturalQL case study
+# Building NaturalQL
 
-NaturalQL explores a narrow question: how much deterministic control can be
-placed between a language model that proposes SQL and a database that executes
-it?
+Natural-language-to-SQL demos often stop at the most impressive moment: the
+model returns a plausible query. NaturalQL follows the query through the less
+flashy but more important next step—deciding whether it should run.
 
-## Design
+The result is a compact application where a user can ask a surprisingly rich
+question, inspect the generated SQL, and see the answer without setting up a
+database server.
 
-The application uses a seeded cinema schema because it is immediately
-understandable while still supporting non-trivial questions about screenings,
-directors, casts, genres, festivals, and awards. DuckDB keeps the demonstration
-local and repeatable; Streamlit provides a minimal query interface.
+## The starting point
 
-The language model receives the current schema and a concise set of DuckDB
-generation rules. Its response is not executed directly. NaturalQL parses it
-with sqlglot, validates its sources and identifiers, rejects operations outside
-the query policy, and applies an output limit. A failure may be returned to the
-model once for repair, after which the full policy runs again.
+The interface needed to feel immediate, so NaturalQL includes a local movie
+database with cinemas, schedules, people, festivals, and awards. The domain is
+easy to understand while still producing interesting queries with many-to-many
+joins, overlapping dates, aggregates, and exclusions.
 
-## Why deterministic validation matters
+DuckDB keeps the data local. Streamlit keeps the interface focused on three
+things: the question, the SQL, and the result.
 
-Prompt instructions are probabilistic. They can reduce malformed output, but
-they cannot guarantee that a model will obey a read-only requirement or use the
-right schema. The validator therefore owns enforcement, while the prompt owns
-generation quality.
+## Making generation useful
 
-The database connection used for generated SQL is also read-only and has
-external access disabled. That second boundary reduces reliance on any single
-parser or validation rule.
+OpenAI receives the current database structure and a concise set of DuckDB
+rules. Those rules cover details that commonly make generated queries brittle:
 
-## Trade-offs
+- use explicit joins;
+- qualify ambiguous columns;
+- handle cinema schedules as overlapping date ranges;
+- use `NOT EXISTS` for “never” conditions;
+- apply a result limit.
 
-NaturalQL deliberately favors a small, inspectable policy over broad SQL
-compatibility. It demonstrates structural safety and reproducible behavior, not
-semantic proof. A query can satisfy every policy rule and still answer the wrong
-question.
+A small date normalizer resolves supported phrases such as “this summer” before
+the question reaches the model. The reference date is configurable, so the same
+demo question behaves consistently later.
 
-The result cap is likewise not a resource sandbox. Production execution would
-need database-native permissions, workload limits, observability, and approval
-rules appropriate to the underlying data.
+## Making generation safe to run
 
-## Further work
+The prompt improves the first attempt, but it does not enforce anything.
+NaturalQL treats the returned text like any other untrusted input.
 
-- Compare generated SQL with a curated evaluation set.
-- Add semantic checks for required filters and join paths.
-- Record latency, token usage, validation failures, and repair outcomes.
-- Move execution behind a database role with domain-specific authorization.
-- Add explicit CPU, memory, and wall-clock limits outside the application.
+sqlglot parses the candidate query and resolves its tables, columns, aliases,
+and nested scopes against DuckDB's actual structure. The policy rejects writes,
+database commands, multiple statements, external sources, and queries outside
+the configured size and complexity bounds. It also applies the maximum result
+limit to the parsed query rather than editing SQL as a string.
+
+Accepted SQL runs through a read-only DuckDB connection with external access
+disabled. Setup and reset operations use a different, short-lived connection.
+
+## Recovering without hiding failures
+
+Generated SQL will sometimes be wrong. If the first attempt fails validation,
+NaturalQL gives OpenAI the validation error and one chance to repair it. The new
+query must pass every check again.
+
+The loop stops there. A single retry keeps the behavior understandable and the
+cost bounded, while still recovering from common mistakes such as an incorrect
+column name or grouping rule.
+
+## What this project proves—and what it does not
+
+NaturalQL demonstrates that LLM-generated SQL can be placed behind concrete,
+testable access controls. It does not prove that accepted SQL is the best or
+even the correct interpretation of a question.
+
+That remaining gap is the most interesting direction for future work:
+
+- compare results against a curated evaluation set;
+- check whether required filters and relationships appear in the query;
+- record generation latency, validation failures, and repair success;
+- enforce database-native workload and authorization policies.
+
+The project stays intentionally small so those trade-offs remain visible rather
+than disappearing behind infrastructure.
