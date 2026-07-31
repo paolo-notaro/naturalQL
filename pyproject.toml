@@ -32,7 +32,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["E501"]
 
 [tool.pytest.ini_options]
-addopts = "--cov=naturalql --cov-report=term-missing --cov-fail-under=85"
+addopts = "--cov=naturalql --cov-report=term-missing --cov-fail-under=100"
 testpaths = ["tests"]
 
 [build-system]

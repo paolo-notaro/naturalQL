@@ -1,4 +1,6 @@
 import pytest
+from sqlglot import exp
+from sqlglot.errors import ParseError
 
 from naturalql.guards import QueryPolicy, QueryRejected, prepare_sql
 
@@ -51,6 +53,16 @@ def test_unexpected_parser_failure_is_rejected(monkeypatch, schema, policy):
         prepare("SELECT title FROM movies", schema, policy)
 
 
+def test_parser_error_is_rejected(monkeypatch, schema, policy):
+    def fail_to_parse(*args, **kwargs):
+        raise ParseError("invalid generated SQL")
+
+    monkeypatch.setattr("naturalql.guards.parse", fail_to_parse)
+
+    with pytest.raises(QueryRejected, match="SQL parse error"):
+        prepare("SELECT title FROM movies", schema, policy)
+
+
 def test_allows_dangerous_words_inside_literals(schema, policy):
     sql = prepare("SELECT 'drop table' AS note FROM movies LIMIT 1", schema, policy)
     assert "drop table" in sql
@@ -60,6 +72,11 @@ def test_allows_dangerous_words_inside_literals(schema, policy):
 def test_extracts_a_single_markdown_fence(schema, policy):
     sql = prepare("```sql\nSELECT title FROM movies\n```", schema, policy)
     assert "movies.title" in sql
+
+
+def test_rejects_an_empty_fenced_block(schema, policy):
+    with pytest.raises(QueryRejected, match="empty query"):
+        prepare("Response:\n```sql\n\n```", schema, policy)
 
 
 def test_extracts_one_fence_with_surrounding_text(schema, policy):
@@ -146,6 +163,14 @@ def test_rejects_oversized_sql(schema):
 def test_rejects_excessive_ast_complexity(schema):
     policy = QueryPolicy(result_limit=10, max_sql_length=2_000, max_ast_nodes=5)
     with pytest.raises(QueryRejected, match="too complex"):
+        prepare("SELECT title FROM movies", schema, policy)
+
+
+def test_rejects_prohibited_expression_nested_in_query(monkeypatch, schema, policy):
+    monkeypatch.setattr(
+        "naturalql.guards._prohibited_expression_types", lambda: (exp.Select,)
+    )
+    with pytest.raises(QueryRejected, match="prohibited operation"):
         prepare("SELECT title FROM movies", schema, policy)
 
 

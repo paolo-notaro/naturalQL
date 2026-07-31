@@ -31,6 +31,11 @@ def test_client_requires_api_key(monkeypatch):
         llm._client()
 
 
+def test_client_is_created_when_api_key_is_present(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    assert llm._client() is not None
+
+
 def test_generate_sql_uses_configured_date_and_limit(monkeypatch):
     client, completions = fake_client("```sql\nSELECT title FROM movies\n```")
     monkeypatch.setattr(llm, "_client", lambda: client)

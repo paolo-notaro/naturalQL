@@ -95,9 +95,9 @@ poetry run pytest
 poetry check --lock
 ```
 
-CI runs formatting, linting, secret scanning, and 44 tests on Python 3.11 and
-3.12. The tests mock OpenAI responses, require no API key, and currently cover
-more than 97% of the core application code.
+CI runs formatting, linting, secret scanning, and the test suite on Python 3.11
+and 3.12. The tests mock OpenAI responses, require no API key, and enforce 100%
+statement and branch coverage across the core application modules.
 
 ## License
 
