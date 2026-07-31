@@ -1,4 +1,4 @@
-# NaturalQL
+# NaturalQL 🎬
 
 > AI-based Natural language to SQL translator with safety guardrails.
 
