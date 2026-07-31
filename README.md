@@ -1,201 +1,107 @@
-# 🎬 NaturalQL
+# NaturalQL
 
-NaturalQL is a **natural‑language → SQL** demo with **guardrails**. Ask a question, get a safe SQL query, and see results from a small cinema dataset. Built for interviews and rapid prototyping.
+NaturalQL is a Streamlit app that turns plain-English questions into SQL and
+runs them against a DuckDB cinema database. Before execution, generated queries
+are checked for read-only behavior and references to the known schema.
 
----
+OpenAI generates the SQL, sqlglot parses and validates it, and DuckDB provides a
+local dataset covering movies, screenings, casts, festivals, and awards.
 
-## ✨ Features
+![NaturalQL query interface](docs/assets/naturalql-ui.png)
 
-* **NL → SQL** via OpenAI (DuckDB dialect)
-* **Guardrails:** SELECT‑only, enforced `LIMIT`, schema‑bounded generation, SQL parsing + alias‑aware validation, single repair loop
-* **Deterministic time phrases** (e.g., *“this summer”*) resolved against a fixed demo date
-* **Streamlit UI** with two tabs: *Query* and *About*, optional *Show SQL* + *Explain SQL*
-* **Zero‑ops DB:** DuckDB file, auto‑seeded with a realistic film schema
+## What it demonstrates
 
----
+- Natural-language to DuckDB SQL over a known schema
+- AST-based validation of statements, tables, columns, scopes, and aliases
+- Read-only query execution with external access disabled
+- Deterministic handling of supported relative date phrases
+- One bounded repair attempt when generated SQL fails validation
+- A local, reproducible dataset with no database service to provision
 
-## 🧱 Architecture
+## Architecture
 
 ```mermaid
-%%{init: {
-  "theme": "base",
-  "themeVariables": {
-    "fontFamily": "Inter,Segoe UI,Arial,Helvetica,sans-serif",
-    "primaryColor": "#E0F2FE",
-    "primaryBorderColor": "#0284C7",
-    "primaryTextColor": "#0F172A",
-    "lineColor": "#94A3B8"
-  }
-}}%%
 flowchart LR
-  classDef user  fill:#FEF3C7,stroke:#F59E0B,stroke-width:2px,color:#111827;
-  classDef ui    fill:#E0F2FE,stroke:#0284C7,stroke-width:2px,color:#0C4A6E;
-  classDef llm   fill:#EDE9FE,stroke:#7C3AED,stroke-width:2px,color:#1E1B4B;
-  classDef guard fill:#ECFCCB,stroke:#65A30D,stroke-width:2px,color:#14532D;
-  classDef data  fill:#FAE8FF,stroke:#A21CAF,stroke-width:2px,color:#3B0764;
-  classDef db    fill:#F1F5F9,stroke:#334155,stroke-width:2px,color:#0F172A;
-
-  U([User]):::user --> UI[Streamlit UI]:::ui
-  UI -->|NL prompt| LLM[OpenAI Chat Completions]:::llm
-  UI --> SCH[Schema Text]:::data
-  LLM -->|SQL| GR[Guardrails<br/>sanitize &amp; sqlglot]:::guard
-  GR -->|valid SELECT| DB[(DuckDB)]:::db
-  GR -. on error .-> RP[Repair Pass]:::guard
-  RP --> LLM
-  DB -->|DataFrame| UI
-
-  subgraph Guardrails
-    GR
-    RP
-  end
-  subgraph Data
-    SCH
-    DB
-  end
-
-  linkStyle default stroke:#94A3B8,stroke-width:2.2px,opacity:0.95
+    U[User question] --> N[Date normalization]
+    N --> L[OpenAI SQL generation]
+    S[DuckDB schema] --> L
+    L --> V[SQL policy and AST validation]
+    V -->|Rejected| R[Single repair attempt]
+    R --> V
+    V -->|Validated query| D[(Read-only DuckDB)]
+    D --> UI[Streamlit results]
 ```
 
-```
-naturalql/
-├─ app.py                 # Streamlit UI
-├─ requirements.txt
-└─ src/naturalql/
-   ├─ __init__.py
-   ├─ config.py           # settings (model, db path, today, limits)
-   ├─ db.py               # DDL + seeding + schema helpers
-   ├─ guards.py           # sanitize + sqlglot validation (alias-aware)
-   ├─ llm.py              # prompts: generate/repair/explain
-   └─ nlp.py         # tiny NL preprocessor for date phrases
-```
+The model is not a security control. Generated text is treated as untrusted and
+must pass the same validation pipeline on both the initial and repair attempts.
+See [Security and reliability](docs/security.md) for the enforced guarantees and
+known limitations. The dataset is described in [Data model](docs/tables.md).
 
-**Data model (tables):** 
+## Query policy
 
-`cinemas, movies, people, movie_directors, movie_cast, genres, movie_genres, festivals, festival_entries, awards, movie_awards, screenings`.
+Before execution, NaturalQL:
 
+1. Parses exactly one DuckDB query.
+2. Rejects mutations, database commands, and external file or network sources.
+3. Resolves tables, aliases, scopes, and columns against the live schema.
+4. Applies configured SQL-size and AST-complexity bounds.
+5. Adds or caps the outer `LIMIT`.
+6. Executes the result through a separate read-only connection.
 
-```mermaid
-erDiagram
-CINEMAS ||--o{ SCREENINGS : has
-MOVIES ||--o{ SCREENINGS : is_shown_at
-MOVIES ||--o{ MOVIE_DIRECTORS : has
-PEOPLE ||--o{ MOVIE_DIRECTORS : directs
-MOVIES ||--o{ MOVIE_CAST : has
-PEOPLE ||--o{ MOVIE_CAST : acts_in
-MOVIES ||--o{ MOVIE_GENRES : categorized_as
-GENRES ||--o{ MOVIE_GENRES : includes
-FESTIVALS ||--o{ FESTIVAL_ENTRIES : includes
-MOVIES ||--o{ FESTIVAL_ENTRIES : submits
-AWARDS ||--o{ MOVIE_AWARDS : grants
-MOVIES ||--o{ MOVIE_AWARDS : receives
-```
----
+This boundary limits what generated SQL can access or modify. It does not prove
+that a valid query correctly represents the user's intent, nor does a row limit
+bound the work performed by the database.
 
-## ⚙️ Setup
+## Setup
 
-### Recommended Stack
-
-* Python 3.11 (DuckDB wheels are most stable on 3.11). 3.12 works, but see troubleshooting.
-* Poetry ≥ 1.6
-* OpenAI API key (sign up at [https://platform.openai.com](https://platform.openai.com))
-* VSCode (optional, but recommended) - with Mermaid extension for architecture diagrams
-
-## 1) Install dependencies
+NaturalQL supports Python 3.11 and 3.12 and uses
+[Poetry](https://python-poetry.org/) for dependency management.
 
 ```bash
 poetry install
+cp .env.example .env
 ```
 
-### Create a `.env` file (kept out of git)
+Set `OPENAI_API_KEY` in `.env`. The file is ignored by Git; `.env.example`
+documents all supported settings without containing credentials.
 
-Create a file named **`.env`** in the project root with your configuration:
-
-```ini
-# Required
-OPENAI_API_KEY=sk-...
-
-# Optional (defaults shown)
-NQL_MODEL=gpt-4o-mini
-NQL_DB_PATH=naturalql.duckdb
-NQL_RESULT_LIMIT=50
-NQL_TODAY=2025-09-10   # fixes relative time phrases for demo
-```
-
-Ensure `.env` is ignored by git (add this to `.gitignore` if not present):
-
-```gitignore
-.env
-```
-
-## ▶️ Run
+Run the application:
 
 ```bash
 poetry run streamlit run src/naturalql/app.py
 ```
 
-Then open the printed local URL (typically [http://localhost:8501](http://localhost:8501)).
+## Example questions
 
----
+- List movies released in 2025 with their directors and primary genre.
+- For each cinema, count new releases screening in August 2025.
+- Which movies at Cinema Luna in July 2025 had no festival participation?
+- Find actors who worked with more than one director.
 
-## 🧪 Try these queries
+The included cinema dataset is deliberately small, but its many-to-many
+relationships exercise joins, aggregates, anti-joins, and date-window logic.
 
-* *“Show all new Sci-Fi movies screened at Cinema Luna between 1 Jun and 31 Aug 2025, directed by debut directors, that never participated in A or S ranked festivals, share no cast member with any award-winning movie, have runtime ≥ 100 minutes, and were shown in 2D (not IMAX).”*
-* *“For each cinema, count how many new releases were screening in August 2025.”*
-* *“List movies released in 2025 with their directors and primary genre.”*
-* *“Find actors who worked with more than one director.”*
-* *“Which movies screening at Cinema Luna in July 2025 have no festival participation?”*
+## Development
 
-Tip: tick **Show generated SQL** to display the query.
+Run the same checks used in CI:
 
----
+```bash
+poetry run ruff format --check .
+poetry run ruff check .
+poetry run pytest
+poetry check
+```
 
-## 🛡️ Guardrails (how it stays safe)
+Tests do not call OpenAI and do not require an API key. Model responses are
+mocked so validation and repair behavior remain deterministic.
 
-* **Sanitization:** rejects non‑SELECT statements, removes semicolons, enforces `LIMIT`
-* **Schema bounding:** prompts include the exact schema; unknown tables/columns rejected
-* **Static checks:** `sqlglot` parsing + alias resolution; friendly hints (e.g., `festival_rank`)
-* **Repair loop:** if first attempt fails, a single error‑aware retry is attempted
+## Project status
 
----
+NaturalQL is an educational, single-user demonstration rather than a production
+authorization layer. Production use would additionally require database roles,
+resource and time limits, audit logging, monitoring, and domain-specific access
+control.
 
-## 🧩 Design choices (talking points)
+## License
 
-* **DuckDB**: file‑based, fast, no server setup
-* **Prompt rules**: codified compliance (time windows → date overlaps, GROUP BY requirements)
-* **Determinism**: fixed TODAY date + tiny time normalizer for *“this summer”* etc.
-* **Extensibility**: swap OpenAI model, change DB, or add self‑verification
-
----
-
-## 🔧 Extending
-
-* **Self‑verification**: second pass that critiques SQL (columns, joins, predicates)
-* **Caching/telemetry**: `st.cache_data`, timing, token & latency logs
-* **Row‑level security / column whitelist**: restrict sensitive tables/fields
-* **Postgres**: replace `duckdb` connector; adjust `sqlglot` dialect if needed
-* **Domain glossary**: map user synonyms to schema terms pre‑prompt
-
----
-
-## 🧭 Demo script (5 minutes)
-
-1. Briefly show the *About* tab: architecture + guardrails
-2. Run 2–3 queries; show the SQL and results
-3. Trigger a failure (e.g., use `rank` instead of `festival_rank`) and show the friendly error
-4. Mention extensions: self‑verification, RLS, Postgres swap, cost tracking
-
----
-
-## 🩺 Troubleshooting
-
-* **“Only SELECT queries are allowed.”** → The generator tried DDL/DML; click *Generate & Run* again or simplify wording
-* **“Unknown table in column reference: m”** → Fixed by alias‑aware validator; if seen, update `guards.validate_with_sqlglot`
-* **“Use festivals.festival\_rank instead of 'rank'.”** → Adjust the query; `rank` is a window function name
-* **Empty results for time windows** → Ensure phrases are resolved for 2025 (see `NQL_TODAY` or `nlp.py`)
-* **OPENAI\_API\_KEY not set** → export it in the same terminal that runs Streamlit
-
----
-
-## 📄 License
-
-MIT (for demo/educational purposes)
+Licensed under the [MIT License](LICENSE).
