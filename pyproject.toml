@@ -19,7 +19,7 @@ dependencies = [
 packages = [{ include = "naturalql", from = "src" }]
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=8.3,<9"
+pytest = ">=9.0.3,<10"
 pytest-cov = ">=6,<7"
 ruff = ">=0.9,<1"
 
