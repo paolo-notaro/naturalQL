@@ -130,11 +130,11 @@ def main() -> None:
         show_sql = st.checkbox("Show generated SQL")
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
-            go = st.button("Generate & Run", type="primary", use_container_width=True)
+            go = st.button("Generate & Run", type="primary", width="stretch")
         with col2:
-            explain_btn = st.button("Explain SQL", use_container_width=True)
+            explain_btn = st.button("Explain SQL", width="stretch")
         with col3:
-            if st.button("Reset demo DB", use_container_width=True):
+            if st.button("Reset demo DB", width="stretch"):
                 reset_database(settings.db_path)
                 st.success("Database reset.")
 
@@ -211,7 +211,7 @@ def main() -> None:
                     progress.update(
                         label="Query complete", state="complete", expanded=False
                     )
-                    st.dataframe(df, use_container_width=True, hide_index=True)
+                    st.dataframe(df, width="stretch", hide_index=True)
                     st.success(f"Returned {len(df)} row(s).")
                 except Exception as e:
                     progress.update(label="Query execution failed", state="error")
