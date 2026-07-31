@@ -1,19 +1,39 @@
-[tool.poetry]
+[project]
 name = "naturalql"
 version = "0.1.0"
 description = "Natural language to guardrailed SQL (Streamlit + DuckDB)"
-authors = ["Paolo Notaro <paolo.notaro@outlook.com>"]
+authors = [{ name = "Paolo Notaro", email = "paolo.notaro@outlook.com" }]
 readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "streamlit>=1.38,<2",
+    "pandas>=2.2,<3",
+    "sqlglot>=25.9,<30",
+    "openai>=1.107,<3",
+    "python-dotenv>=1.0,<2",
+    "duckdb>=1.1,<2",
+]
+
+[tool.poetry]
 packages = [{ include = "naturalql", from = "src" }]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.13"
-streamlit = "1.38.0"
-pandas = "2.2.2"
-sqlglot = "25.9.0"
-openai = ">=1.40.0"
-python-dotenv = "1.0.1"
-duckdb = "0.10.3"
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.3,<9"
+pytest-cov = ">=6,<7"
+ruff = ">=0.9,<1"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=naturalql --cov-report=term-missing --cov-fail-under=85"
+testpaths = ["tests"]
 
 [build-system]
 requires = ["poetry-core>=1.8.0"]

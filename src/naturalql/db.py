@@ -1,7 +1,9 @@
-"""src/naturalql/db.py: Database connection and initialization for NaturalQL."""
+"""DuckDB schema, deterministic seed data, and connection boundaries."""
+
+from datetime import date
+from pathlib import Path
 
 import duckdb
-from datetime import date
 
 DDL = """
 DROP TABLE IF EXISTS cinemas;
@@ -178,12 +180,33 @@ SEED = {
 }
 
 
-def connect(db_path: str) -> duckdb.DuckDBPyConnection:
-    """Connect to a DuckDB database at the given path."""
+def connect(db_path: str, *, read_only: bool = False) -> duckdb.DuckDBPyConnection:
+    """Open a DuckDB connection, optionally restricted to read-only access."""
+    if read_only:
+        return duckdb.connect(
+            db_path,
+            read_only=True,
+            config={"enable_external_access": "false"},
+        )
     return duckdb.connect(db_path)
 
 
-def init_db(conn: duckdb.DuckDBPyConnection, force_rebuild: bool = False):
+def initialize_database(db_path: str, *, force_rebuild: bool = False) -> None:
+    """Initialize through a short-lived trusted administrative connection."""
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    conn = connect(db_path)
+    try:
+        init_db(conn, force_rebuild=force_rebuild)
+    finally:
+        conn.close()
+
+
+def connect_for_queries(db_path: str) -> duckdb.DuckDBPyConnection:
+    """Open the connection used exclusively for validated generated queries."""
+    return connect(db_path, read_only=True)
+
+
+def init_db(conn: duckdb.DuckDBPyConnection, force_rebuild: bool = False) -> None:
     """Initialize the database schema and seed data if needed."""
     tables = [r[0] for r in conn.execute("SHOW TABLES").fetchall()]
     if force_rebuild or not tables:
@@ -227,7 +250,9 @@ def schema_text(conn: duckdb.DuckDBPyConnection) -> str:
     return "\n".join(schema)
 
 
-def allowed_identifiers(conn: duckdb.DuckDBPyConnection):
+def allowed_identifiers(
+    conn: duckdb.DuckDBPyConnection,
+) -> tuple[set[str], dict[str, set[str]]]:
     tables = set(conn.execute("SHOW TABLES").df()["name"].tolist())
     cols = {}
     for t in tables:

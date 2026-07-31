@@ -1,15 +1,18 @@
-"""src/naturalql/llm.py: Natural language to SQL via LLMs."""
+"""OpenAI-backed SQL generation and explanation."""
 
-from typing import Optional
+import os
+from datetime import date
+
 from openai import OpenAI
+
 from naturalql.config import DEFAULT_MODEL
 
 PROMPT_HEADER = (
     "You convert natural language to DuckDB SQL. HARD REQUIREMENTS:\n"
     "1) Output ONLY a single SELECT statement (no DDL/DML). No comments.\n"
     "2) Use ONLY provided tables/columns. Explicit JOINs with ON.\n"
-    "3) Assume TODAY is 2025-09-11. Resolve relative dates against 2025.\n"
-    "   Northern Hemisphere seasons: summer=Jun1-Aug31, spring=Mar1-ay31, autumn=Sep1-Nov30, winter=Dec1-Feb28/29.\n"
+    "3) Assume TODAY is {today}. Resolve relative dates against {year}.\n"
+    "   Northern Hemisphere seasons: summer=Jun1-Aug31, spring=Mar1-May31, autumn=Sep1-Nov30, winter=Dec1-Feb28/29.\n"
     "   When filtering screenings by a time window, use OVERLAP logic: (screenings.start_date <= <window_end>) AND (screenings.end_date >= <window_start>).\n"
     "4) Always include 'LIMIT {result_limit}' unless a lower LIMIT is specified.\n"
     "5) Prefer ANSI SQL compatible with DuckDB. Use table-qualified columns when ambiguous.\n"
@@ -23,18 +26,33 @@ PROMPT_HEADER = (
 )
 
 
+class LLMConfigurationError(RuntimeError):
+    """Raised when required LLM configuration is unavailable."""
+
+
 def _client() -> OpenAI:
-    """Initialize and return an OpenAI client. Assumes OPENAI_API_KEY is set in env."""
+    """Initialize an OpenAI client after checking local configuration."""
+    if not os.getenv("OPENAI_API_KEY"):
+        raise LLMConfigurationError(
+            "OPENAI_API_KEY is not set. Add it to .env before generating SQL."
+        )
     return OpenAI()
 
 
 def generate_sql(
-    nl_query: str, schema_text: str, result_limit: int, model: Optional[str] = None
+    nl_query: str,
+    schema_text: str,
+    result_limit: int,
+    *,
+    today: date,
+    model: str | None = None,
 ) -> str:
     """Generate a SQL query from a natural language query using an LLM."""
     model = model or DEFAULT_MODEL
     client = _client()
-    sys = PROMPT_HEADER.format(result_limit=result_limit)
+    sys = PROMPT_HEADER.format(
+        result_limit=result_limit, today=today.isoformat(), year=today.year
+    )
     user = (
         f"SCHEMA:\n{schema_text}\n\n"
         "TASK: Convert the user question to a single safe SELECT query. Return ONLY the SQL inside triple backticks.\n\n"
@@ -56,7 +74,7 @@ def repair_sql(
     error_msg: str,
     schema_text: str,
     result_limit: int,
-    model: Optional[str] = None,
+    model: str | None = None,
 ) -> str:
     model = model or DEFAULT_MODEL
     client = _client()
@@ -78,7 +96,7 @@ def repair_sql(
     return r.choices[0].message.content
 
 
-def explain_sql(sql_text: str, model: Optional[str] = None) -> str:
+def explain_sql(sql_text: str, model: str | None = None) -> str:
     model = model or DEFAULT_MODEL
     client = _client()
     prompt = f"Explain, in 2–3 sentences, what this SQL does at a high level (no step-by-step reasoning):\n\n{sql_text}"
