@@ -1,10 +1,12 @@
-"""src/naturalql/nlp.py: Natural language preprocessing for NaturalQL."""
+"""Small, deterministic natural-language normalizations."""
 
 import re
+from datetime import date
 
 
-# Minimal phrase normalizer to make NL more deterministic pre-LLM
-def normalize_time_phrases(nl: str, year: int = 2025) -> str:
+def normalize_time_phrases(nl: str, today: date) -> str:
+    """Resolve supported relative phrases against a configured date."""
+    year = today.year
     s = nl
     repl = {
         r"\bthis summer\b": f"between {year}-06-01 and {year}-08-31",

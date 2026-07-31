@@ -6,4 +6,5 @@ __all__ = [
     "guards",
     "llm",
     "nlp",
+    "scope",
 ]
