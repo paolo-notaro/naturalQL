@@ -80,6 +80,10 @@ def _validate_sources(
 ) -> None:
     cte_names = {cte.alias_or_name.lower() for cte in expression.find_all(exp.CTE)}
     allowed_tables = {table.lower() for table in tables}
+    shadowed_tables = cte_names & allowed_tables
+    if shadowed_tables:
+        names = ", ".join(sorted(shadowed_tables))
+        raise QueryRejected(f"CTE aliases cannot shadow application tables: {names}")
     physical_sources = 0
 
     for table in expression.find_all(exp.Table):
@@ -103,13 +107,11 @@ def _apply_limit(expression: exp.Query, result_limit: int) -> None:
         expression.set("limit", exp.Limit(expression=exp.Literal.number(result_limit)))
         return
 
-    value = current.expression
-    if not isinstance(value, exp.Literal) or not value.is_int:
-        current.set("expression", exp.Literal.number(result_limit))
-        return
-
-    if int(value.this) > result_limit:
-        current.set("expression", exp.Literal.number(result_limit))
+    value = current.args.get("expression") or current.args.get("count")
+    limit = result_limit
+    if isinstance(value, exp.Literal) and value.is_int:
+        limit = min(int(value.this), result_limit)
+    expression.set("limit", exp.Limit(expression=exp.Literal.number(limit)))
 
 
 def prepare_sql(

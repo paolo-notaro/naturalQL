@@ -141,6 +141,15 @@ def test_supports_ctes_and_unions(schema, policy):
     assert sql.endswith("LIMIT 50")
 
 
+def test_rejects_ctes_that_shadow_application_tables(schema, policy):
+    with pytest.raises(QueryRejected, match="cannot shadow application tables: movies"):
+        prepare(
+            "WITH movies AS (SELECT 1 AS title) SELECT title FROM movies",
+            schema,
+            policy,
+        )
+
+
 @pytest.mark.parametrize(
     ("query", "expected"),
     [
@@ -148,6 +157,8 @@ def test_supports_ctes_and_unions(schema, policy):
         ("SELECT title FROM movies LIMIT 10", "LIMIT 10"),
         ("SELECT title FROM movies LIMIT 500", "LIMIT 50"),
         ("SELECT title FROM movies LIMIT 5 + 5", "LIMIT 50"),
+        ("SELECT title FROM movies FETCH FIRST 10 ROWS ONLY", "LIMIT 10"),
+        ("SELECT title FROM movies FETCH FIRST 500 ROWS ONLY", "LIMIT 50"),
     ],
 )
 def test_applies_result_limit(query, expected, schema, policy):
