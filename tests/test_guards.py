@@ -36,6 +36,11 @@ def test_rejects_multiple_statements(schema, policy):
         prepare("SELECT title FROM movies; SELECT name FROM people", schema, policy)
 
 
+def test_rejects_queries_without_application_data(schema, policy):
+    with pytest.raises(QueryRejected, match="at least one application table"):
+        prepare("SELECT 1492 AS year", schema, policy)
+
+
 def test_unexpected_parser_failure_is_rejected(monkeypatch, schema, policy):
     def fail_to_parse(*args, **kwargs):
         raise RuntimeError("unexpected parser failure")

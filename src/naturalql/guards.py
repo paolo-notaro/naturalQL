@@ -80,6 +80,7 @@ def _validate_sources(
 ) -> None:
     cte_names = {cte.alias_or_name.lower() for cte in expression.find_all(exp.CTE)}
     allowed_tables = {table.lower() for table in tables}
+    physical_sources = 0
 
     for table in expression.find_all(exp.Table):
         if not isinstance(table.this, exp.Identifier):
@@ -89,6 +90,11 @@ def _validate_sources(
         name = table.name.lower()
         if name not in allowed_tables and name not in cte_names:
             raise QueryRejected(f"Unknown table referenced: {table.name}")
+        if name in allowed_tables:
+            physical_sources += 1
+
+    if physical_sources == 0:
+        raise QueryRejected("The query must reference at least one application table")
 
 
 def _apply_limit(expression: exp.Query, result_limit: int) -> None:

@@ -11,16 +11,18 @@ DuckDB provides a second enforcement layer at execution time.
 
 Every initial or repaired query goes through the same sequence:
 
-1. Extract SQL from the model response and reject empty or oversized output.
-2. Parse exactly one statement using the DuckDB dialect.
-3. Require a query expression and reject writes or database commands.
-4. Check physical tables against the allowed application tables.
-5. Resolve columns, aliases, and nested scopes against the live database
+1. Refuse questions that do not explicitly refer to the available movie-data
+   domain before making an API request.
+2. Extract SQL from the model response and reject empty or oversized output.
+3. Parse exactly one statement using the DuckDB dialect.
+4. Require a query expression and reject writes or database commands.
+5. Require at least one physical table from the application database.
+6. Resolve columns, aliases, and nested scopes against the live database
    structure.
-6. Reject table-producing functions that could introduce an external source.
-7. Reject an excessively large syntax tree.
-8. Add or cap the result limit.
-9. Execute through the read-only connection with external access disabled.
+7. Reject table-producing functions that could introduce an external source.
+8. Reject an excessively large syntax tree.
+9. Add or cap the result limit.
+10. Execute through the read-only connection with external access disabled.
 
 Working with a parsed syntax tree matters. A keyword search can reject harmless
 text such as a movie title containing “drop,” while still missing a dangerous
@@ -38,6 +40,11 @@ query execution begins.
 
 The model prompt is useful for query quality, but it is deliberately not counted
 as a security layer.
+
+The domain gate is deliberately simple and visible. It catches accidental
+off-topic questions and common prompt-hijacking attempts before an API call, but
+it is not a semantic classifier. A prompt that includes movie terminology can
+pass this gate; the SQL and database controls still enforce what may execute.
 
 ## Reliability choices
 

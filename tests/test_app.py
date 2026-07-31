@@ -41,3 +41,15 @@ def test_failed_generation_clears_previous_sql(monkeypatch, tmp_path):
 
     assert "last_sql" not in app.session_state
     assert "OPENAI_API_KEY is not set" in app.error[0].value
+
+
+def test_out_of_domain_question_is_refused_before_generation(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENAI_API_KEY", "not-a-real-key")
+    monkeypatch.setenv("NQL_DB_PATH", str(tmp_path / "scope.duckdb"))
+    app = AppTest.from_file("src/naturalql/app.py").run(timeout=20)
+
+    app.text_area[0].set_value("What is year 1492 in history?")
+    app.button[0].click().run(timeout=20)
+
+    assert not app.error
+    assert "only answers questions" in app.warning[0].value

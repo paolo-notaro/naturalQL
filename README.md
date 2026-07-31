@@ -21,6 +21,7 @@ column, and returns the matching movies—all from the Streamlit interface.
 - Inspect the generated SQL alongside the results.
 - Block writes, unknown tables and columns, multiple statements, and external
   data sources before execution.
+- Refuse questions that do not relate to the available movie data.
 - Run accepted queries through a read-only database connection.
 - Repair an invalid query once, then validate it again from scratch.
 - Explore a ready-to-use movie database with cinemas, screenings, casts,
@@ -46,6 +47,7 @@ only sends accepted SQL to DuckDB.
 ### Guardrails
 
 - Exactly one query statement
+- At least one table from the application database
 - Known tables and columns only, including aliases and nested queries
 - No writes, database commands, or external file and network sources
 - Configurable limits on returned rows, SQL length, and query complexity

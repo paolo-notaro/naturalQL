@@ -9,6 +9,7 @@ import streamlit as st
 from naturalql import db, guards, llm
 from naturalql.config import Settings
 from naturalql.nlp import normalize_time_phrases
+from naturalql.scope import is_domain_question
 
 st.set_page_config(page_title="NaturalQL", page_icon="🎬", layout="centered")
 
@@ -137,7 +138,14 @@ def main() -> None:
                 reset_database(settings.db_path)
                 st.success("Database reset.")
 
-        if go and nl.strip():
+        if go and nl.strip() and not is_domain_question(nl):
+            st.session_state.pop("last_sql", None)
+            st.warning(
+                "NaturalQL only answers questions about the available movie, "
+                "cinema, screening, people, festival, and award data."
+            )
+
+        if go and nl.strip() and is_domain_question(nl):
             st.session_state.pop("last_sql", None)
             progress = st.status("Generating SQL...", expanded=True)
             progress.write("Sending the question and database structure to OpenAI.")
