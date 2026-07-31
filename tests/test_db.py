@@ -32,6 +32,17 @@ def test_file_database_uses_read_only_query_connection(tmp_path):
         conn.close()
 
 
+def test_ensure_database_does_not_reopen_an_existing_database(tmp_path):
+    path = str(tmp_path / "existing.duckdb")
+    db.initialize_database(path)
+    existing = db.connect_for_queries(path)
+    try:
+        db.ensure_database(path)
+        assert existing.execute("SELECT COUNT(*) FROM movies").fetchone() == (5,)
+    finally:
+        existing.close()
+
+
 def test_schema_helpers_describe_seeded_database(seeded_connection):
     text = db.schema_text(seeded_connection)
     tables, columns = db.allowed_identifiers(seeded_connection)

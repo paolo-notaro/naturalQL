@@ -201,6 +201,12 @@ def initialize_database(db_path: str, *, force_rebuild: bool = False) -> None:
         conn.close()
 
 
+def ensure_database(db_path: str) -> None:
+    """Create the demo database only when its file does not yet exist."""
+    if not Path(db_path).exists():
+        initialize_database(db_path)
+
+
 def connect_for_queries(db_path: str) -> duckdb.DuckDBPyConnection:
     """Open the connection used exclusively for validated generated queries."""
     return connect(db_path, read_only=True)

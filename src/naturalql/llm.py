@@ -65,7 +65,6 @@ def generate_sql(
             {"role": "system", "content": sys},
             {"role": "user", "content": user},
         ],
-        temperature=0.1,
     )
     return r.choices[0].message.content
 
@@ -92,7 +91,6 @@ def repair_sql(
             {"role": "system", "content": sys},
             {"role": "user", "content": user},
         ],
-        temperature=0.1,
     )
     return r.choices[0].message.content
 
@@ -107,6 +105,5 @@ def explain_sql(sql_text: str, model: str | None = None) -> str:
             {"role": "system", "content": "You are a helpful data analyst."},
             {"role": "user", "content": prompt},
         ],
-        temperature=0.2,
     )
     return r.choices[0].message.content.strip()

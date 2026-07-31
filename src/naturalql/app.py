@@ -1,10 +1,10 @@
 """Streamlit interface for NaturalQL."""
 
+import base64
 import re
 from pathlib import Path
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from naturalql import db, guards, llm
 from naturalql.config import Settings
@@ -40,7 +40,11 @@ def render_mermaid_from_md(md_path: str | Path, *, height: int = 760) -> None:
       }});
     </script>
     """
-    components.html(html, height=height, scrolling=True)
+    encoded_html = base64.b64encode(html.encode("utf-8")).decode("ascii")
+    st.iframe(
+        f"data:text/html;base64,{encoded_html}",
+        height=height,
+    )
 
 
 def hero() -> None:
@@ -66,7 +70,7 @@ def get_conn(path: str):
         existing = st.session_state.pop("conn", None)
         if existing is not None:
             existing.close()
-        db.initialize_database(path)
+        db.ensure_database(path)
         st.session_state["conn"] = db.connect_for_queries(path)
         st.session_state["db_path"] = path
     return st.session_state["conn"]

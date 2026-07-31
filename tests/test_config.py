@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 
+from naturalql import config
 from naturalql.config import Settings
 
 ENV_NAMES = (
@@ -16,6 +17,7 @@ ENV_NAMES = (
 
 @pytest.fixture(autouse=True)
 def clean_environment(monkeypatch):
+    monkeypatch.setattr(config, "find_dotenv", lambda: "")
     for name in ENV_NAMES:
         monkeypatch.delenv(name, raising=False)
 
