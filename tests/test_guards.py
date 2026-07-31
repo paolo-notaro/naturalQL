@@ -57,6 +57,23 @@ def test_extracts_a_single_markdown_fence(schema, policy):
     assert "movies.title" in sql
 
 
+def test_extracts_one_fence_with_surrounding_text(schema, policy):
+    sql = prepare(
+        "Here is the query:\n```sql\nSELECT title FROM movies\n```\nDone.",
+        schema,
+        policy,
+    )
+    assert "movies.title" in sql
+
+
+def test_rejects_multiple_fenced_blocks(schema, policy):
+    response = (
+        "```sql\nSELECT title FROM movies\n```\n```sql\nSELECT name FROM people\n```"
+    )
+    with pytest.raises(QueryRejected, match="multiple fenced"):
+        prepare(response, schema, policy)
+
+
 @pytest.mark.parametrize(
     ("sql", "message"),
     [

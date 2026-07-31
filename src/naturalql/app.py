@@ -134,6 +134,7 @@ def main() -> None:
                 st.success("Database reset.")
 
         if go and nl.strip():
+            st.session_state.pop("last_sql", None)
             nl_norm = normalize_time_phrases(nl, settings.today)
             policy = guards.QueryPolicy(
                 result_limit=int(limit),
@@ -176,11 +177,11 @@ def main() -> None:
                         sql = None
 
             if sql:
-                st.session_state["last_sql"] = sql
                 if show_sql:
                     st.code(sql, language="sql")
                 try:
                     df = conn.execute(sql).df()
+                    st.session_state["last_sql"] = sql
                     st.dataframe(df, use_container_width=True, hide_index=True)
                     st.success(f"Returned {len(df)} row(s).")
                 except Exception as e:

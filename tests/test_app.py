@@ -26,3 +26,16 @@ def test_get_conn_recovers_when_connection_is_missing(monkeypatch, tmp_path):
         assert session_state["conn"] is conn
     finally:
         conn.close()
+
+
+def test_failed_generation_clears_previous_sql(monkeypatch, tmp_path):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("NQL_DB_PATH", str(tmp_path / "failure.duckdb"))
+    app = AppTest.from_file("src/naturalql/app.py").run(timeout=20)
+    app.session_state["last_sql"] = "SELECT title FROM movies LIMIT 1"
+
+    app.text_area[0].set_value("List every movie")
+    app.button[0].click().run(timeout=20)
+
+    assert "last_sql" not in app.session_state
+    assert "OPENAI_API_KEY is not set" in app.error[0].value

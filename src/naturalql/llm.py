@@ -34,7 +34,8 @@ def _client() -> OpenAI:
     """Initialize an OpenAI client after checking local configuration."""
     if not os.getenv("OPENAI_API_KEY"):
         raise LLMConfigurationError(
-            "OPENAI_API_KEY is not set. Add it to .env before generating SQL."
+            "OPENAI_API_KEY is not set. Add it to .env or the process environment "
+            "before generating SQL."
         )
     return OpenAI()
 

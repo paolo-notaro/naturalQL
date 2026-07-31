@@ -25,7 +25,9 @@ def fake_client(content: str):
 
 def test_client_requires_api_key(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with pytest.raises(llm.LLMConfigurationError, match="OPENAI_API_KEY"):
+    with pytest.raises(
+        llm.LLMConfigurationError, match=".env or the process environment"
+    ):
         llm._client()
 
 

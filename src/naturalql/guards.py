@@ -8,7 +8,7 @@ from sqlglot import exp, parse
 from sqlglot.errors import ParseError
 from sqlglot.optimizer.qualify import qualify
 
-FENCE_RE = re.compile(r"^\s*```(?:sql)?\s*(.*?)\s*```\s*$", re.DOTALL | re.IGNORECASE)
+FENCE_RE = re.compile(r"```(?:sql)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
 
 
 class QueryRejected(ValueError):
@@ -30,13 +30,18 @@ class QueryPolicy:
 
 def _extract_sql(raw_sql: str, max_length: int) -> str:
     sql = raw_sql.strip()
-    match = FENCE_RE.match(sql)
-    if match:
-        sql = match.group(1).strip()
     if not sql:
         raise QueryRejected("The model returned an empty query")
     if len(sql) > max_length:
         raise QueryRejected("The generated query is too long")
+
+    fenced_blocks = FENCE_RE.findall(sql)
+    if len(fenced_blocks) > 1:
+        raise QueryRejected("The model returned multiple fenced SQL blocks")
+    if fenced_blocks:
+        sql = fenced_blocks[0].strip()
+        if not sql:
+            raise QueryRejected("The model returned an empty query")
     return sql
 
 
