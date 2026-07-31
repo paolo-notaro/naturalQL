@@ -139,6 +139,8 @@ def main() -> None:
 
         if go and nl.strip():
             st.session_state.pop("last_sql", None)
+            progress = st.status("Generating SQL...", expanded=True)
+            progress.write("Sending the question and database structure to OpenAI.")
             nl_norm = normalize_time_phrases(nl, settings.today)
             policy = guards.QueryPolicy(
                 result_limit=int(limit),
@@ -154,15 +156,23 @@ def main() -> None:
                     model=model,
                 )
             except llm.LLMConfigurationError as error:
+                progress.update(label="Generation could not start", state="error")
                 st.error(str(error))
                 sql = None
             except Exception as error:
+                progress.update(label="SQL generation failed", state="error")
                 st.error(f"SQL generation failed: {error}")
                 sql = None
             else:
+                progress.update(label="Validating generated SQL...")
+                progress.write("Checking query type, tables, columns, and limits.")
                 try:
                     sql = guards.prepare_sql(raw_sql, tables_ok, cols_ok, policy)
                 except guards.QueryRejected as initial_error:
+                    progress.update(label="Repairing rejected SQL...")
+                    progress.write(
+                        "The first query was rejected. Trying one bounded repair."
+                    )
                     try:
                         repaired = llm.repair_sql(
                             nl_norm,
@@ -174,6 +184,9 @@ def main() -> None:
                         sql = guards.prepare_sql(repaired, tables_ok, cols_ok, policy)
                         st.info("First attempt failed; used repair pass.")
                     except Exception as repair_error:
+                        progress.update(
+                            label="Query did not pass validation", state="error"
+                        )
                         st.error(
                             "Could not produce a query that satisfies the policy."
                             f"\n\n{repair_error}"
@@ -181,14 +194,19 @@ def main() -> None:
                         sql = None
 
             if sql:
+                progress.update(label="Running validated query...")
                 if show_sql:
                     st.code(sql, language="sql")
                 try:
                     df = conn.execute(sql).df()
                     st.session_state["last_sql"] = sql
+                    progress.update(
+                        label="Query complete", state="complete", expanded=False
+                    )
                     st.dataframe(df, use_container_width=True, hide_index=True)
                     st.success(f"Returned {len(df)} row(s).")
                 except Exception as e:
+                    progress.update(label="Query execution failed", state="error")
                     st.error(f"Execution error: {e}")
 
         if explain_btn:
@@ -197,7 +215,8 @@ def main() -> None:
                 st.warning("Generate and run a query first.")
             else:
                 try:
-                    explanation = llm.explain_sql(last_sql, model=model)
+                    with st.spinner("Explaining the executed SQL...", show_time=True):
+                        explanation = llm.explain_sql(last_sql, model=model)
                     st.write(explanation)
                 except Exception as e:
                     st.error(f"Could not explain: {e}")
