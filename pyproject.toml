@@ -7,11 +7,11 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    "streamlit>=1.60,<2",
+    "streamlit>=1.62.0,<2",
     "pandas>=2.2,<3",
     "sqlglot>=25.9,<30",
-    "openai>=1.107,<3",
-    "python-dotenv>=1.0,<2",
+    "openai>=2.54.0,<3",
+    "python-dotenv>=1.2.3,<2",
     "duckdb>=1.1,<2",
 ]
 
@@ -19,9 +19,9 @@ dependencies = [
 packages = [{ include = "naturalql", from = "src" }]
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=8.3,<9"
-pytest-cov = ">=6,<7"
-ruff = ">=0.9,<1"
+pytest = ">=9.1.1,<10"
+pytest-cov = ">=7.1.0,<8"
+ruff = ">=0.16.5,<1"
 
 [tool.ruff]
 line-length = 88
